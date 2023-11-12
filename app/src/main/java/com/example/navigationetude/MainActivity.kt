@@ -1,5 +1,6 @@
 package com.example.navigationetude
 
+import android.annotation.SuppressLint
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -18,14 +19,8 @@ import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AccountBox
 import androidx.compose.material.icons.filled.ArrowForward
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.outlined.AccountBox
-import androidx.compose.material.icons.outlined.FavoriteBorder
-import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material3.Button
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -43,20 +38,23 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.navigation.NamedNavArgument
-import androidx.navigation.NavDestination
-import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
-import androidx.navigation.NavHostController
-import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
-import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.example.navigationetude.destinations.AppScreenDestination
+import com.example.navigationetude.destinations.Screen1Destination
+import com.example.navigationetude.destinations.Screen2Destination
+import com.example.navigationetude.destinations.Screen3Destination
+import com.example.navigationetude.destinations.SettingsScreenDestination
 import com.example.navigationetude.ui.theme.NavigationEtudeTheme
+import com.ramcosta.composedestinations.DestinationsNavHost
+import com.ramcosta.composedestinations.annotation.Destination
+import com.ramcosta.composedestinations.annotation.RootNavGraph
+import com.ramcosta.composedestinations.navigation.DestinationsNavigator
+import com.ramcosta.composedestinations.navigation.navigate
+import com.ramcosta.composedestinations.spec.Direction
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -74,81 +72,36 @@ class MainActivity : ComponentActivity() {
         }
     }
 }
-
+//https://medium.com/@chiragthummar16/jetpack-compose-bottom-navigation-with-scaffold-material3-717e28ccc811
 @Composable
 fun MainScreen() {
-    val navController = rememberNavController()
-    NavHost(
-        navController = navController,
-        startDestination = NavRoute.Welcome.route,
-        modifier = Modifier.fillMaxSize()
-    ) {
-        composable(route = NavRoute.Welcome.route) {
-            WelcomeScreen() {
-                navController.navigate(it)
-            }
-        }
-        composable(route = NavRoute.AppScreen.route) {
-            AppScreen() {
-                navController.navigate(it)
-            }
-        }
-        composable(route = NavRoute.Settings.route) {
-            SettingsScreen()
-        }
-    }
+    DestinationsNavHost(navGraph = NavGraphs.root)
 }
 
-sealed class NavRoute(val route: String, val arguments: List<NamedNavArgument> = emptyList()){
-    object Welcome: NavRoute("welcome")
-    object AppScreen: NavRoute("app")
-    object Screen1: NavRoute("screen1")
-    object Screen2: NavRoute("screen2")
-    object Screen3: NavRoute("screen3")
-    object Settings: NavRoute("settings")
-}
-
+@RootNavGraph(start = true)
+@Destination
 @Composable
-fun WelcomeScreen(navigateTo: (route: String) -> Unit) {
+fun WelcomeScreen(navigator: DestinationsNavigator) {
     Box(modifier = Modifier
         .fillMaxSize()
         .background(Color.Magenta),
         contentAlignment = Alignment.Center) {
         Column (verticalArrangement = Arrangement.spacedBy(30.dp)) {
             Text(text = "WelcomeScreen")
-            Button(onClick = {navigateTo(NavRoute.AppScreen.route)}) {
+            Button(onClick = {navigator.navigate(AppScreenDestination)}) {
                 Icon(Icons.Default.ArrowForward, "toApp")
             }
         }
     }
 }
 
-
+@SuppressLint("RestrictedApi")
+@Destination
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AppScreen(
-    navigateTo: (route: String) -> Unit
+    navigator: DestinationsNavigator
 ) {
-
-    val topLevelDestinations = listOf(
-        TopLevelDestination(
-            route = NavRoute.Screen1.route,
-            selectedIcon = Icons.Filled.Home,
-            unselectedIcon = Icons.Outlined.Home,
-            iconText = "Home"
-        ), TopLevelDestination(
-            route = NavRoute.Screen2.route,
-            selectedIcon = Icons.Filled.AccountBox,
-            unselectedIcon = Icons.Outlined.AccountBox,
-            iconText = "Account"
-        ), TopLevelDestination(
-            route = NavRoute.Screen3.route,
-            selectedIcon = Icons.Filled.Favorite,
-            unselectedIcon = Icons.Outlined.FavoriteBorder,
-            iconText = "Favorite"
-        )
-    )
-
     val showBottomBar = remember { mutableStateOf(true) }
     val title = remember {
         mutableStateOf("Home")
@@ -173,7 +126,7 @@ fun AppScreen(
                     contentDescription = "Settings",
                     modifier = Modifier
                         .clickable {
-                            navigateTo(NavRoute.Settings.route)
+                            navigator.navigate(SettingsScreenDestination)
                         }
                         .padding(8.dp)
                 )
@@ -181,24 +134,26 @@ fun AppScreen(
         },
         bottomBar = {
             if (showBottomBar.value) {
-                HomeBottomBar(destinations = topLevelDestinations,
-                    currentDestination = navController.currentBackStackEntryAsState().value?.destination,
-                    onNavigateToDestination = {
-                        title.value = when (it) {
-                            "sc1" -> "Screen 1"
-                            "sc2" -> "Screen 2"
-                            else -> {
-                                "Screen 3"
-                            }
+                BottomNavBar(
+                    currentDestination = navController.appCurrentDestinationAsState().value
+                        ?: NavGraphs.bottom.startAppDestination
+                ) {
+                    title.value = when (it) {
+                        Screen1Destination -> "Home"
+                        Screen2Destination -> "Account"
+                        Screen3Destination -> "Favorite"
+                        else -> {
+                            "Unknown screen"
                         }
-                        navController.navigate(it) {
-                            popUpTo(navController.graph.findStartDestination().id) {
-                                saveState = true
-                            }
-                            restoreState = true
-                            launchSingleTop = true
+                    }
+                    navController.navigate(it) {
+                        popUpTo(navController.graph.findStartDestination().id) {
+                            saveState = true
                         }
-                    })
+                        restoreState = true
+                        launchSingleTop = true
+                    }
+                }
             }
         }
     ) {
@@ -207,115 +162,19 @@ fun AppScreen(
                 .padding(it)
                 .fillMaxSize()
         ) {
-            HomeNavHost(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .weight(1f),
-                navController = navController,
-                startDestination = NavRoute.Screen1.route,
-                navigateTo = navigateTo
-            )
-
+            DestinationsNavHost(
+                navGraph = NavGraphs.bottom,
+                navController = navController)
         }
     }
-
-}
-
-data class TopLevelDestination(
-    val route: String,
-    val selectedIcon: ImageVector,
-    val unselectedIcon: ImageVector,
-    val iconText: String) {
-
 }
 
 
 @Composable
-fun HomeNavHost(
-    modifier: Modifier,
-    navController: NavHostController,
-    startDestination: String,
-    navigateTo: (route: String) -> Unit
+private fun BottomNavBar(
+    currentDestination: com.example.navigationetude.destinations.Destination?,
+    onNavigateToDestination: (Direction) -> Unit
 ) {
-
-    NavHost(
-        navController = navController, startDestination = startDestination, modifier = modifier
-    ) {
-
-        composable(route = NavRoute.Screen1.route) {
-            Screen1()
-        }
-        composable(route = NavRoute.Screen2.route) {
-            Screen2()
-        }
-        composable(route = NavRoute.Screen3.route) {
-            Screen3()
-        }
-
-
-    }
-}
-
-
-@Composable
-fun Screen1() {
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.Cyan)
-    ) {
-        Column(modifier = Modifier.align(Alignment.Center)) {
-            Text(text = "Screen # 1", fontSize = 20.sp)
-        }
-    }
-}
-
-@Composable
-fun Screen2() {
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.Yellow)
-    ) {
-        Column(modifier = Modifier.align(Alignment.Center)) {
-            Text(text = "Screen # 2", fontSize = 20.sp)
-        }
-    }
-}
-
-@Composable
-fun Screen3() {
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.Blue)
-    ) {
-        Column(modifier = Modifier.align(Alignment.Center)) {
-            Text(text = "Screen # 3", fontSize = 20.sp)
-        }
-    }
-}
-
-@Composable
-fun SettingsScreen() {
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.Red)
-    ) {
-        Column(modifier = Modifier.align(Alignment.Center)) {
-            Text(text = "Settings Screen", fontSize = 20.sp)
-        }
-    }
-}
-
-@Composable
-private fun HomeBottomBar(
-    destinations: List<TopLevelDestination>,
-    currentDestination: NavDestination?,
-    onNavigateToDestination: (route: String) -> Unit
-) {
-
     NavigationBar(
         modifier = Modifier
             .windowInsetsPadding(
@@ -323,12 +182,11 @@ private fun HomeBottomBar(
             )
             .height(70.dp),
     ) {
-        destinations.forEach { destination ->
-            val selected =
-                currentDestination?.hierarchy?.any { it.route == destination.route } == true
+        BottomBarDestination.values().forEach { destination ->
+            val selected = currentDestination == destination.direction
             NavigationBarItem(
                 selected = selected,
-                onClick = { onNavigateToDestination(destination.route) },
+                onClick = { onNavigateToDestination(destination.direction) },
                 icon = {
                     val icon = if (selected) {
                         destination.selectedIcon
@@ -338,14 +196,15 @@ private fun HomeBottomBar(
                     Icon(
                         imageVector = icon,
                         modifier = Modifier.size(16.dp),
-                        contentDescription = null
+                        contentDescription = destination.iconText
                     )
                 },
                 label = {
                     Text(
                         text = destination.iconText
                     )
-                })
+                }
+            )
         }
     }
 }
